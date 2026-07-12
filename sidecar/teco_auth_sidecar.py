@@ -327,9 +327,18 @@ class TecoSession:
                 inid = b.get("invoice_id")
                 if not inid or not caid:
                     continue
-                if inid in self._cache and not force:
-                    continue
-                LOG.info("fetching bill %s (%s)", inid, b.get("label"))
+                cached = self._cache.get(inid)
+                if cached and not force:
+                    # TECO can publish a bill's total before its day-by-day readings,
+                    # so re-fetch a cached bill only if its daily looks incomplete.
+                    du = cached.get("daily_usage") or []
+                    sd = cached.get("service_days") or 0
+                    if not sd or len(du) >= sd - 2:
+                        continue
+                    LOG.info("refreshing incomplete daily for bill %s (had %d of ~%d days)",
+                             inid, len(du), sd)
+                else:
+                    LOG.info("fetching bill %s (%s)", inid, b.get("label"))
                 detail = await self._bill_detail(caid, inid)
                 detail["bill_date"] = b.get("bill_date")
                 detail["label"] = b.get("label")

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1
+- **Fix: daily usage (and the $/kWh chart) now update when a new bill posts.** TECO can
+  publish a bill's total before its day-by-day readings are available; a bill fetched in
+  that window was cached with empty/short daily and — because the archive is append-only
+  — never refreshed, so daily got stuck at the last read. Each poll now re-fetches any
+  bill whose daily is incomplete, so it fills in automatically once TECO posts the days.
+
 ## 1.1.0
 - **Daily usage tracks the current (un-billed) period.** Each poll now also fetches any
   new days from TECO past the last bill — using the live session token — so the daily
