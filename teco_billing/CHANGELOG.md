@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0
+- **Gas service (Peoples Gas) is now pulled alongside electric.** A login that has both
+  accounts now fetches both each poll instead of only the selected one. Gas arrives as
+  `sensor.teco_gas_*` entities (amount due, last bill cost, therms, CCF, $/therm, service
+  period) and as its own **gas source on the Energy Dashboard**.
+- **Gas usage is published in CCF**, taken from the meter reading delta
+  (`CurrentReading - PreviousReading`). TECO bills gas in therms, which HA does not
+  accept as a gas unit; CCF is the meter's own index, so no conversion factor is
+  invented. The therm figure is still published on `sensor.teco_gas_last_bill_usage`.
+- **Gas statistics are one point per billing period.** TECO publishes no daily gas
+  readings at all (the gas ViewBill page loads `meterDataMonthlyUsage` and no daily
+  component), so gas cannot be daily the way electric is.
+- The bill archive is now tagged by contract account, and `/bills` + `/export` include
+  an `account_id` column so gas and electric rows are distinguishable.
+
 ## 1.2.0
 - **Fix: "login OK, no data" on logins with more than one account (#3).** TECO parks
   multi-account logins (e.g. Tampa Electric + Peoples Gas, or several premises) on an
