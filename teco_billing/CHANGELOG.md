@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.1
+- **Fix: gas bills were being plotted in the electric charts.** The sidebar dashboard
+  loads `/export`, which spans every contract account, so once gas arrived in 1.3.0 its
+  bills (therms) were drawn on the same axis as electric (kWh) — showing up as a row of
+  tiny bars between the real ones, and dragging the summary line down to `min 1`. The
+  dashboard now has an **account switcher** and shows one account at a time, with units,
+  headings, table columns and tooltips following the selected service (kWh / $/kWh vs
+  therms / $/therm). The daily-usage chart is hidden for gas, which has no daily data.
+- Gas quantities render with one decimal — 4.6 therms was displaying as `5`.
+- Each archived bill now records its `service`, so the split survives a restart; older
+  cached bills are tagged in place on the next poll. `/export` gained an `accounts`
+  summary and `primary_account`.
+- The CSV export still spans every account by design (it is the full archive) and
+  carries `account_id` per row.
+
 ## 1.3.0
 - **Gas service (Peoples Gas) is now pulled alongside electric.** A login that has both
   accounts now fetches both each poll instead of only the selected one. Gas arrives as

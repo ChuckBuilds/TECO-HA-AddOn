@@ -388,7 +388,8 @@ class TecoSession:
         return out
 
     # ---- main orchestration ----------------------------------------------- #
-    async def _fetch_current_account(self, force: bool = False) -> dict:
+    async def _fetch_current_account(self, force: bool = False,
+                                     service: str = "electric") -> dict:
         """Scrape + backfill whichever contract account the session is on now."""
         html = await self._page.content()
         account = parsers.parse_account_info(html)
@@ -446,8 +447,9 @@ class TecoSession:
                 # Migrate entries cached before multi-account support: appearing in
                 # THIS account's BillSelector is proof of ownership, so stamp it
                 # rather than leaving it attributed to whoever is primary today.
-                if not cached.get("account_id"):
+                if not cached.get("account_id") or not cached.get("service"):
                     cached["account_id"] = caid
+                    cached["service"] = service
                     migrated += 1
                 # A gas bill has no daily readings at all, so the "incomplete daily"
                 # re-fetch below would loop on it forever -- only apply it to accounts
@@ -468,6 +470,7 @@ class TecoSession:
             detail["bill_date"] = b.get("bill_date")
             detail["label"] = b.get("label")
             detail["account_id"] = caid
+            detail["service"] = service
             self._cache[inid] = detail
             _save_cache(self._cache)
 
@@ -542,7 +545,8 @@ class TecoSession:
                 elif "/Selection" in self._page.url:
                     await self._select_account()
                 try:
-                    got = await self._fetch_current_account(force=force)
+                    got = await self._fetch_current_account(
+                        force=force, service=acct["service"] if acct else "electric")
                 except Exception:  # noqa: BLE001
                     LOG.exception("fetch failed for account %s",
                                   acct["id"] if acct else "(current)")
@@ -630,11 +634,28 @@ class TecoSession:
             return detail
 
     def export(self) -> dict:
-        """Everything ever archived (full cache), for >3yr retention/export."""
+        """Everything ever archived (full cache), for >3yr retention/export.
+
+        This deliberately spans EVERY contract account, so the dashboard/CSV has
+        the complete archive. Each bill carries `account_id` + `service`, and the
+        `accounts` map below lets a consumer group by them -- without that, gas
+        bills (therms) and electric bills (kWh) plot on the same axis.
+        """
         details, daily = self._assemble_from_cache()
+        accounts: dict[str, dict] = {}
+        for d in details:
+            aid = d.get("account_id") or self._primary_account or "unknown"
+            a = accounts.setdefault(aid, {"account_id": aid, "service": None, "bills": 0})
+            a["bills"] += 1
+            if not a["service"] and d.get("service"):
+                a["service"] = d["service"]
+        for a in accounts.values():          # anything still unlabelled is electric
+            a["service"] = a["service"] or "electric"
         return {
             "exported_at": datetime.now(timezone.utc).isoformat(),
             "archived_bills": len(self._cache),
+            "primary_account": self._primary_account,
+            "accounts": accounts,
             "bills": details,
             "daily_usage": daily,
         }

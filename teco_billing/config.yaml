@@ -1,5 +1,5 @@
 name: TECO Billing
-version: "1.3.0"
+version: "1.3.1"
 slug: teco_billing
 description: >-
   Pulls Tampa Electric (TECO) and Peoples Gas billing, usage, cost and
