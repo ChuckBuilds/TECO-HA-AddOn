@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Keep the CI action pins current -- pinning to SHAs is only safe if something
+  # moves them forward when upstream patches a vulnerability.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: pip
+    directory: "/sidecar"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: "/teco_billing"
+    schedule:
+      interval: weekly

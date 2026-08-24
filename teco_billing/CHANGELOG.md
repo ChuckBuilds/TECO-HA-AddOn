@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.4.0 — security
+- **Fix: the API token could be bypassed with a forged header.** `_auth` skipped the
+  token check for any request carrying an `X-Ingress-Path` header, assuming only Home
+  Assistant ingress would send one. Headers are attacker-controlled, so any client
+  could send it — and with the port published, that exposed the entire billing archive
+  (bills, usage, cost, meter reads, contract account numbers) to anything on the LAN.
+  Ingress is now proven by the request's **source address** (the Supervisor network),
+  not by a header. Covered by `tests/test_auth.py`, which CI runs on every push.
+- **The API port is no longer published by default.** Nothing needs it — the add-on
+  pushes to HA itself and the dashboard is served over ingress. Publish `8089` in the
+  add-on's **Network** tab only if you want direct API access, and set `auth_token`
+  when you do. The add-on now warns at startup when no token is set.
+- Token comparison is constant-time (`secrets.compare_digest`) instead of `!=`.
+- Interactive API docs (`/docs`, `/redoc`, `/openapi.json`) are disabled.
+- CI actions pinned to commit SHAs instead of movable tags; workflows run with
+  `permissions: contents: read`; added CodeQL analysis and Dependabot.
+- Dependencies gained upper bounds so an unattended rebuild cannot pull a new major.
+- Added `SECURITY.md` and a CI check that fails if `./sync.sh` was not run
+  (an unsynced `sidecar/` change silently does nothing, since the image builds
+  from `teco_billing/app/`).
+
 ## 1.3.2
 - **Fix: after a restart, the gas account showed as "Electric" with kWh units** until the
   first poll finished. The service label lived only on cached bills, so a cache written by

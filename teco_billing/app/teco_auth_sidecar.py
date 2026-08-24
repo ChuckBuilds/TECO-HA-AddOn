@@ -34,6 +34,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import ipaddress
+import secrets
 import json
 import logging
 import os
@@ -92,6 +94,11 @@ WANT_COMPONENTS = {"meterdata", "chargedetails", "billselector",
 
 # The account picker at /Selection: each account is a clickable <tr>.
 SELECTION_ROW = 'tr[data-pdsa-action="selection"]'
+
+# Home Assistant proxies ingress from the Supervisor's internal network. Only a
+# request that genuinely arrives from there may skip the token -- the header alone
+# proves nothing, since any client can send any header.
+SUPERVISOR_NET = ipaddress.ip_network("172.30.32.0/23")
 
 
 def _coerce_flag(value):
@@ -762,18 +769,42 @@ try:
             task.cancel()
             await session.close()
 
-    app = FastAPI(title="TECO auth+data sidecar", version="0.4.0", lifespan=lifespan)
+    app = FastAPI(title="TECO auth+data sidecar", version="0.4.0", lifespan=lifespan,
+                  docs_url=None, redoc_url=None, openapi_url=None)
+
+    if not TOKEN:
+        # Harmless when the port is unpublished (ingress-only). Loud because the
+        # combination of a published port and no token exposes every bill.
+        LOG.warning("no auth_token set: if you publish port 8089 in the add-on's "
+                    "Network tab, ANY device on your LAN can read your full billing "
+                    "archive. Ingress (the sidebar panel) is unaffected.")
 
     _UI_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui.html")
 
+    def _from_supervisor(request: Request) -> bool:
+        """True only if this request really came from the Supervisor's network."""
+        host = getattr(getattr(request, "client", None), "host", None)
+        if not host:
+            return False
+        try:
+            return ipaddress.ip_address(host) in SUPERVISOR_NET
+        except ValueError:
+            return False
+
     def _auth(request: Request, x_auth_token: str | None = Header(default=None)) -> None:
-        """Require X-Auth-Token when SIDECAR_TOKEN is set — but exempt requests that
-        arrive via Home Assistant ingress (already auth-gated by HA)."""
+        """Require X-Auth-Token when SIDECAR_TOKEN is set.
+
+        Requests arriving through Home Assistant ingress are exempt (HA has already
+        authenticated the user) -- but ingress is proven by the SOURCE ADDRESS, not
+        by the X-Ingress-Path header. Trusting the header alone let any client on
+        the LAN read the whole billing archive by sending it, token or no token.
+        """
         if not TOKEN:
             return
-        if request.headers.get("X-Ingress-Path") is not None:
+        if request.headers.get("X-Ingress-Path") is not None and _from_supervisor(request):
             return
-        if x_auth_token != TOKEN:
+        # constant-time: a plain != leaks the token a character at a time
+        if not x_auth_token or not secrets.compare_digest(x_auth_token, TOKEN):
             raise HTTPException(status_code=401, detail="bad or missing X-Auth-Token")
 
     @app.get("/", response_class=HTMLResponse)

@@ -1,5 +1,5 @@
 name: TECO Billing
-version: "1.3.2"
+version: "1.4.0"
 slug: teco_billing
 description: >-
   Pulls Tampa Electric (TECO) and Peoples Gas billing, usage, cost and
@@ -26,10 +26,16 @@ panel_title: TECO Billing
 # The add-on pushes data into HA itself, so this isn't needed for normal use.
 # Exposed only for power users who want to hit /data, /export, etc. directly.
 # Protected by auth_token if set (ingress is always exempt). Set to null to disable.
+# NOT published by default. The add-on pushes to HA itself and the dashboard is
+# served over ingress, so nothing needs this open. Publishing it puts the whole
+# billing archive on your LAN -- set a port in the add-on's Network tab only if
+# you want direct API access, and set auth_token when you do.
 ports:
-  8089/tcp: 8089
+  8089/tcp: null
 ports_description:
-  8089/tcp: TECO sidecar API (optional; the add-on pushes to HA on its own)
+  8089/tcp: >-
+    Direct API access (optional, off by default). Leave empty unless you need
+    /data, /export or /bills from outside Home Assistant. Set auth_token too.
 
 # --- persistent archive ---------------------------------------------------- #
 # Add-ons get a persistent /data dir automatically; the bill cache lives in
