@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.2
+- **Fix: after a restart, the gas account showed as "Electric" with kWh units** until the
+  first poll finished. The service label lived only on cached bills, so a cache written by
+  an older version had none, and `/export` filled the gap by assuming `electric` — which
+  also made the dashboard default to the *gas* account (the first one that then looked
+  electric). The account -> service map is now persisted to `accounts.json` beside the bill
+  cache, so a restart knows kWh from therms before it talks to TECO.
+- `/export` no longer guesses a service it does not know, and the dashboard renders an
+  unlabelled account as "Account" with neutral units instead of asserting Electric/kWh.
+
 ## 1.3.1
 - **Fix: gas bills were being plotted in the electric charts.** The sidebar dashboard
   loads `/export`, which spans every contract account, so once gas arrived in 1.3.0 its
