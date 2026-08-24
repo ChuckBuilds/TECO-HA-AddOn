@@ -15,7 +15,7 @@ serves a sidebar dashboard. A standalone Docker option is included for non-HA ho
 The repo root is a valid Home Assistant add-on repository (`repository.yaml` +
 `teco_billing/` at the top level). In HA:
 1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories** → paste
-   `https://github.com/jjarboe01/TECO-HA-AddOn` → **Add**.
+   `https://github.com/ChuckBuilds/TECO-HA-AddOn` → **Add**.
    (Or click the "Add repository to my Home Assistant" badge in the README.)
 2. The **TECO Billing** add-on appears in the store → open it → **Install** (first
    build pulls the Playwright base image, a few hundred MB, one time).

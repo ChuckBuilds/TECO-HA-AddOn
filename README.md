@@ -1,13 +1,24 @@
 # TECO ↔ Home Assistant
 
-[![Validate](https://github.com/jjarboe01/TECO-HA-AddOn/actions/workflows/validate.yml/badge.svg)](https://github.com/jjarboe01/TECO-HA-AddOn/actions/workflows/validate.yml)
+[![Validate](https://github.com/ChuckBuilds/TECO-HA-AddOn/actions/workflows/validate.yml/badge.svg)](https://github.com/ChuckBuilds/TECO-HA-AddOn/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Add repository to my Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fjjarboe01%2FTECO-HA-AddOn)
+[![Add repository to my Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FChuckBuilds%2FTECO-HA-AddOn)
 
-A **Home Assistant add-on** that brings **Tampa Electric (TECO)** billing, usage,
-cost, and service-period data into Home Assistant — the **Energy Dashboard** at
-**daily** resolution, **sensor entities**, a **persistent multi-year bill archive**,
-and a sidebar **billing dashboard**.
+> **This is a fork** of [jjarboe01/TECO-HA-AddOn](https://github.com/jjarboe01/TECO-HA-AddOn)
+> (all credit for the original to [@jjarboe01](https://github.com/jjarboe01)). It adds
+> support for logins with **more than one account** — TECO parks those on an account
+> picker instead of the dashboard, which made the add-on report `login OK` and then pull
+> nothing ([#3](https://github.com/jjarboe01/TECO-HA-AddOn/issues/3)) — and pulls
+> **Peoples Gas** alongside electric. Both changes are offered upstream as
+> [#4](https://github.com/jjarboe01/TECO-HA-AddOn/pull/4) and
+> [#5](https://github.com/jjarboe01/TECO-HA-AddOn/pull/5); this fork exists so the
+> add-on is installable while those are pending.
+
+A **Home Assistant add-on** that brings **Tampa Electric (TECO)** and **Peoples Gas**
+billing, usage, cost, and service-period data into Home Assistant — the **Energy
+Dashboard** (electricity at **daily** resolution, gas per billing period), **sensor
+entities**, a **persistent multi-year bill archive**, and a sidebar **billing
+dashboard**.
 
 The community had no working TECO solution: the portal is gated by reCAPTCHA v3 +
 Cloudflare + NetScaler with no public API. This add-on solves it by logging in with
