@@ -222,15 +222,20 @@ function render(){
   const list = accountList();
   if(!ACCT || !list.some(a=>a.id===ACCT)){
     const pref = list.find(a=>a.id===DATA.primary_account)
-              || list.find(a=>a.service==="electric") || list[0];
+              || list.find(a=>a.service==="electric")
+              || list.find(a=>a.service==="gas") || list[0];
     ACCT = pref ? pref.id : null;
   }
   renderTabs(list);
-  const cur = list.find(a=>a.id===ACCT) || {service:"electric"};
+  const cur = list.find(a=>a.id===ACCT) || {};
   const isGas = cur.service==="gas";
+  const unknown = cur.service!=="gas" && cur.service!=="electric";
   // TECO bills gas in therms; parse_meter_data stores that in the same field.
-  U = isGas ? {unit:"therms", rate:"$/therm", daily:false, dec:1}
-            : {unit:"kWh",    rate:"$/kWh",   daily:true,  dec:0};
+  // Until the first poll labels the account, say "units" rather than assert kWh --
+  // asserting it showed the gas account as Electric/kWh on every restart.
+  U = isGas    ? {unit:"therms", rate:"$/therm", daily:false, dec:1}
+    : unknown  ? {unit:"units",  rate:"$/unit",  daily:true,  dec:1}
+               : {unit:"kWh",    rate:"$/kWh",   daily:true,  dec:0};
 
   const all = (DATA.bills||[]);
   const bills = (list.length>1 ? all.filter(b=>(b.account_id||DATA.primary_account)===ACCT) : all.slice());

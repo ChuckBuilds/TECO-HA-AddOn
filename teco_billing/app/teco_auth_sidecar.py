@@ -72,6 +72,10 @@ HEADLESS = os.environ.get("HEADLESS", "1") != "0"
 TOKEN = os.environ.get("SIDECAR_TOKEN")
 CACHE_DIR = os.environ.get("CACHE_DIR", os.path.join(os.path.dirname(__file__), "cache"))
 CACHE_FILE = os.path.join(CACHE_DIR, "bills.json")
+# account_id -> "electric"/"gas", persisted so a restart knows which is which
+# BEFORE the first poll finishes. Without it every account looks unlabelled and
+# the dashboard cannot tell kWh from therms.
+ACCT_FILE = os.path.join(CACHE_DIR, "accounts.json")
 
 STATUS_ENDPOINTS = {
     "paperless": "/Dashboard/GetPaperlessBillingStatus",
@@ -109,6 +113,22 @@ def _coerce_flag(value):
     return None
 
 
+def _load_accounts() -> dict:
+    try:
+        with open(ACCT_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_accounts(m: dict) -> None:
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    tmp = ACCT_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(m, f)
+    os.replace(tmp, ACCT_FILE)
+
+
 def _load_cache() -> dict:
     try:
         with open(CACHE_FILE, encoding="utf-8") as f:
@@ -139,8 +159,11 @@ class TecoSession:
         self._daily_url: str | None = None   # meterDataDailyUsage endpoint URL
         self._meter_dln: str | None = None   # electric meter DLN (for daily queries)
         self._recent_daily: list = []        # current-period daily usage (between bills)
-        self._primary_account: str | None = None  # the electric contract account
         self._accounts: list[dict] = []      # every account the picker offers
+        self._known = _load_accounts()       # {account_id: {service, primary}}
+        # survives a restart, so the dashboard knows kWh from therms immediately
+        self._primary_account: str | None = next(
+            (k for k, v in self._known.items() if v.get("primary")), None)
 
     # ---- browser / auth ---------------------------------------------------- #
     async def _ensure_browser(self) -> None:
@@ -263,6 +286,10 @@ class TecoSession:
                 service = "electric" if "electric" in low else "gas" if "gas" in low else "other"
                 if cid:
                     out.append({"id": cid, "service": service, "label": txt})
+            for a in out:               # remember across restarts
+                self._known.setdefault(a["id"], {})["service"] = a["service"]
+            if out:
+                _save_accounts(self._known)
             return out
         except Exception:  # noqa: BLE001
             LOG.exception("could not enumerate accounts")
@@ -527,6 +554,11 @@ class TecoSession:
             if not primary and self._accounts:
                 primary = self._accounts[0]
             self._primary_account = primary["id"] if primary else None
+            if self._primary_account:
+                for aid, v in self._known.items():
+                    v["primary"] = (aid == self._primary_account)
+                self._known.setdefault(self._primary_account, {})["primary"] = True
+                _save_accounts(self._known)
 
             # Walk the accounts, primary first so a mid-run failure still leaves the
             # electric data (the thing the Energy Dashboard needs) populated.
@@ -649,8 +681,11 @@ class TecoSession:
             a["bills"] += 1
             if not a["service"] and d.get("service"):
                 a["service"] = d["service"]
-        for a in accounts.values():          # anything still unlabelled is electric
-            a["service"] = a["service"] or "electric"
+        for aid, a in accounts.items():
+            # Fall back to what we remembered, then give up honestly. Guessing
+            # "electric" here mislabelled the gas account (and its units) on every
+            # restart until the first poll finished.
+            a["service"] = a["service"] or (self._known.get(aid) or {}).get("service")
         return {
             "exported_at": datetime.now(timezone.utc).isoformat(),
             "archived_bills": len(self._cache),
