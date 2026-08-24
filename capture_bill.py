@@ -22,6 +22,7 @@ Outputs into fixtures/ (gitignored — contains PII):
 from __future__ import annotations
 
 import asyncio
+from urllib.parse import urlsplit
 import os
 import sys
 
@@ -91,10 +92,13 @@ async def main() -> int:
                 try:
                     u = resp.url
                     ct = (resp.headers.get("content-type") or "")
-                    if "tecoenergy.com" in u or "miportal" in u:
+                    host = (urlsplit(u).hostname or "")
+                    if host == "miportal.tecoenergy.com" or host.endswith(".tecoenergy.com"):
                         net.append(f"{resp.status} {ct.split(';')[0]:20} {u}")
                     # the structured bill data: miportal .../api/ibill/.../Post/<Component>
-                    if "miportal.tecoenergy.com/api/ibill" in u:
+                    _p = urlsplit(u)
+                    if (_p.hostname == "miportal.tecoenergy.com"
+                            and _p.path.startswith("/api/ibill")):
                         comp = u.rstrip("/").split("/")[-1]
                         try:
                             req_body = resp.request.post_data or ""

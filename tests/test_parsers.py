@@ -61,7 +61,7 @@ def main() -> int:
     print("\n=== parse_account_info ===")
     print(f"  account_id present     : {bool(acct.account_id)}")
     print(f"  contract_account_id    : {bool(acct.contract_account_id)}")
-    print(f"  account_type           : {acct.account_type}")
+    print(f"  account_type present   : {bool(acct.account_type)}")
     print(f"  interactive_billing    : {acct.interactive_billing}")
 
     # --- assertions (shape, not values) ---

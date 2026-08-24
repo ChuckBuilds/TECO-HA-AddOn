@@ -42,6 +42,7 @@ import os
 import sys
 import time
 from datetime import date, datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 # verified parsers/models (siblings in this folder; vendored together into the image)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -99,6 +100,24 @@ SELECTION_ROW = 'tr[data-pdsa-action="selection"]'
 # request that genuinely arrives from there may skip the token -- the header alone
 # proves nothing, since any client can send any header.
 SUPERVISOR_NET = ipaddress.ip_network("172.30.32.0/23")
+
+IBILL_HOST = "miportal.tecoenergy.com"
+IBILL_PATH = "/api/ibill"
+
+
+def _is_ibill_url(url: str) -> bool:
+    """True only for a genuine ibill API response.
+
+    A substring test ("miportal.tecoenergy.com/api/ibill" in url) also matches
+    https://evil.example/miportal.tecoenergy.com/api/ibill/... -- which would let
+    a hostile response be parsed straight into the bill archive. Compare the
+    parsed host instead.
+    """
+    try:
+        p = urlsplit(url)
+    except ValueError:
+        return False
+    return p.hostname == IBILL_HOST and p.path.startswith(IBILL_PATH)
 
 
 def _coerce_flag(value):
@@ -336,7 +355,7 @@ class TecoSession:
         async def on_response(resp):
             try:
                 u = resp.url
-                if "miportal.tecoenergy.com/api/ibill" not in u:
+                if not _is_ibill_url(u):
                     return
                 comp = u.rstrip("/").split("/")[-1].split("?")[0].lower()
                 if comp in WANT_COMPONENTS or "meterdatadaily" in comp:
@@ -601,6 +620,16 @@ class TecoSession:
 
             if main is None:
                 raise RuntimeError("no account could be fetched")
+
+            # A per-account failure (e.g. a TECO navigation timeout) is survivable --
+            # the others still publish -- but it must not pass silently, or gas simply
+            # goes missing from the payload with nothing to explain it.
+            missed = [a["id"] for a in self._accounts if a["id"] not in per_account]
+            if missed:
+                LOG.warning("fetched %d of %d account(s); missing %s -- their sensors and "
+                            "statistics keep their previous values until the next poll",
+                            len(per_account), len(self._accounts),
+                            ", ".join("..." + m[-4:] for m in missed))
 
             gas = next((v for v in per_account.values() if v.get("service") == "gas"), None)
             result = {
