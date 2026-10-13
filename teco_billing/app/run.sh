@@ -29,4 +29,8 @@ if [ -z "$TECO_USER" ] || [ -z "$TECO_PASS" ]; then
 fi
 
 echo "[teco] starting (backfill=$BACKFILL_BILLS bills, poll=${POLL_INTERVAL_HOURS}h, ttl=${SESSION_TTL_MIN}m)"
-exec xvfb-run -a -s "-screen 0 1920x1080x24" uvicorn teco_auth_sidecar:app --host 0.0.0.0 --port 8089
+# Xvfb directly, not xvfb-run: as PID 1 (init: false) xvfb-run hangs waiting for
+# Xvfb's ready signal, so uvicorn never starts and ingress shows 502.
+Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp &
+export DISPLAY=:99
+exec uvicorn teco_auth_sidecar:app --host 0.0.0.0 --port 8089

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2
+- **Fix: 1.4.1 never started (ingress 502, empty log).** `xvfb-run` hangs as PID 1
+  waiting for Xvfb's ready signal; Xvfb is now started directly.
+
 ## 1.4.1 — login fix
 - **Fix: every login failed with "reCAPTCHA score or bad credentials".** In Oct 2026
   TECO started rejecting headless Chromium ("You filled that out really quick... you
