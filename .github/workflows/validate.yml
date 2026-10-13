@@ -51,6 +51,8 @@ jobs:
         run: pip install fastapi 'httpx<1' beautifulsoup4 aiohttp playwright
       - name: The API must not be reachable without a token
         run: python tests/test_auth.py
+      - name: A rejected login must back off, not retry every poll
+        run: python tests/test_login_backoff.py
 
   vendored:
     name: sidecar/ and add-on app/ in sync

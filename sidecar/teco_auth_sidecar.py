@@ -178,6 +178,8 @@ class TecoSession:
         self._ctx: BrowserContext | None = None
         self._page: Page | None = None
         self._logged_in_at = 0.0
+        self._login_backoff = 0.0     # seconds; doubles on each failed login
+        self._login_paused_until = 0.0
         self._lock = asyncio.Lock()
         self._cache = _load_cache()  # invoice_id -> parsed bill dict
         self._last_data: dict | None = None  # last full payload (for sensor heartbeat)
@@ -217,11 +219,21 @@ class TecoSession:
         user, pw = os.environ.get("TECO_USER"), os.environ.get("TECO_PASS")
         if not user or not pw:
             raise RuntimeError("TECO_USER / TECO_PASS not set")
+        # Retrying a rejected login every poll gets the IP/account flagged as a bot.
+        wait = self._login_paused_until - time.time()
+        if wait > 0:
+            raise RuntimeError(f"login paused for {wait / 60:.0f} more min after a failed login")
         await self._ensure_browser()
         LOG.info("logging in ...")
         await self._page.goto(LOGIN_URL, wait_until="networkidle", timeout=60000)
-        await self._page.fill("#UserName", user)
-        await self._page.fill("#Credentials_Password", pw)
+        # type, not fill: TECO's bot check (Oct 2026) also watches input timing
+        await self._page.wait_for_timeout(1500)
+        await self._page.click("#UserName")
+        await self._page.type("#UserName", user, delay=90)
+        await self._page.wait_for_timeout(600)
+        await self._page.click("#Credentials_Password")
+        await self._page.type("#Credentials_Password", pw, delay=90)
+        await self._page.wait_for_timeout(1200)
         try:
             async with self._page.expect_navigation(wait_until="networkidle", timeout=60000):
                 await self._page.click("#login-submit")
@@ -229,10 +241,21 @@ class TecoSession:
             pass
         await self._page.wait_for_timeout(2500)
         if not await self._is_logged_in():
+            self._note_login_failure()
+            body = (await self._page.inner_text("body")).lower()
+            if "filled that out really quick" in body:
+                raise RuntimeError("login failed: TECO flagged the browser as a bot (is HEADLESS=1?)")
             raise RuntimeError("login failed (reCAPTCHA score or bad credentials)")
         self._logged_in_at = time.time()
+        self._login_backoff = 0.0
         LOG.info("login OK")
         await self._select_account()
+
+    def _note_login_failure(self) -> None:
+        # 30 min, 1 h, 2 h ... capped at 12 h; reset by a good login or an add-on restart
+        self._login_backoff = min(max(self._login_backoff * 2, 1800), 12 * 3600)
+        self._login_paused_until = time.time() + self._login_backoff
+        LOG.warning("login rejected; next attempt in %.0f min", self._login_backoff / 60)
 
     async def _select_account(self) -> bool:
         """Handle the /Selection account picker.

@@ -18,7 +18,8 @@ export SESSION_TTL_MIN="$(get session_ttl_min 30)"
 export CACHE_DIR="/data/cache"          # persistent + never purged
 # optional token: protects the exposed API port. Ingress (the panel) is exempt.
 export SIDECAR_TOKEN="$(get auth_token '')"
-export HEADLESS="1"
+# TECO flags headless Chromium as a bot (Oct 2026); run headed in a virtual display
+export HEADLESS="0"
 # SUPERVISOR_TOKEN is injected by Supervisor (homeassistant_api: true) -> HA publish
 
 mkdir -p "$CACHE_DIR"
@@ -28,4 +29,4 @@ if [ -z "$TECO_USER" ] || [ -z "$TECO_PASS" ]; then
 fi
 
 echo "[teco] starting (backfill=$BACKFILL_BILLS bills, poll=${POLL_INTERVAL_HOURS}h, ttl=${SESSION_TTL_MIN}m)"
-exec uvicorn teco_auth_sidecar:app --host 0.0.0.0 --port 8089
+exec xvfb-run -a -s "-screen 0 1920x1080x24" uvicorn teco_auth_sidecar:app --host 0.0.0.0 --port 8089

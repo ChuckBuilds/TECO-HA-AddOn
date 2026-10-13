@@ -13,7 +13,9 @@ WORKDIR /app
 # Python deps, then the matching Chromium + its OS libraries
 COPY app/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
-    && playwright install --with-deps chromium
+    && playwright install --with-deps chromium \
+    && apt-get install -y --no-install-recommends xvfb xauth \
+    && rm -rf /var/lib/apt/lists/*
 
 # app code (vendored from sidecar/ via ./sync.sh)
 COPY app/ ./

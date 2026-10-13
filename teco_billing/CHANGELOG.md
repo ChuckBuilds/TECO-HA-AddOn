@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.1 — login fix
+- **Fix: every login failed with "reCAPTCHA score or bad credentials".** In Oct 2026
+  TECO started rejecting headless Chromium ("You filled that out really quick... you
+  may be a malicious bot"). Chromium now runs headed inside a virtual display (Xvfb),
+  and credentials are typed instead of pasted. The bot rejection now gets its own error.
+- **A rejected login now backs off** (30 min, doubling to 12 h) instead of retrying
+  every 5 minutes, which kept the account/IP flagged. A good login or an add-on
+  restart resets it.
+
 ## 1.4.0 — security
 - **Fix: the API token could be bypassed with a forged header.** `_auth` skipped the
   token check for any request carrying an `X-Ingress-Path` header, assuming only Home
